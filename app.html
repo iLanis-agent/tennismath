@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TennisMath - calculator</title>
+<style>
+  body { font-family: system-ui, sans-serif; background: #101522; color: #edf0f8; margin: 0; display: flex; flex-direction: column; align-items: center; min-height: 100vh; }
+  main { max-width: 740px; padding: 32px 20px 48px; width: 100%; box-sizing: border-box; }
+  h1 { font-size: 1.9rem; margin: 0 0 4px; }
+  p.sub { color: #b9c3da; margin: 0 0 20px; }
+  .card { background: #161c2c; border: 1px solid #2a3350; border-radius: 12px; padding: 18px 20px; margin-bottom: 16px; }
+  .card h2 { margin: 0 0 12px; font-size: 1.05rem; color: #d3dcef; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 18px; }
+  label { display: block; color: #a2aecb; font-size: 0.82rem; margin-bottom: 4px; }
+  input, select { width: 100%; box-sizing: border-box; background: #101522; border: 1px solid #36416a; color: #edf0f8; border-radius: 8px; padding: 9px 10px; font-size: 0.95rem; }
+  input[type=range] { padding: 0; }
+  .presets { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+  .presets button { background: #1d2540; color: #e2e6f2; border: 1px solid #36416a; border-radius: 999px; padding: 7px 14px; font-size: 0.85rem; cursor: pointer; }
+  .presets button:hover { background: #2a3350; }
+  .out { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .metric { background: #101522; border: 1px solid #2a3350; border-radius: 10px; padding: 12px 14px; }
+  .metric .v { font-size: 1.3rem; font-weight: 700; color: #ffd23f; }
+  .metric .k { color: #a2aecb; font-size: 0.78rem; margin-top: 2px; }
+  .note { color: #7e88a6; font-size: 0.82rem; line-height: 1.5; margin-top: 10px; }
+  table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.9rem; }
+  th, td { text-align: right; padding: 6px 8px; border-bottom: 1px solid #2a3350; }
+  th:first-child, td:first-child { text-align: left; }
+  th { color: #a2aecb; font-weight: 600; font-size: 0.8rem; }
+  td.hl { color: #ffd23f; font-weight: 700; }
+  a.back { color: #ffd23f; font-size: 0.85rem; }
+</style>
+</head>
+<body>
+<main>
+  <h1>&#127934; TennisMath</h1>
+  <p class="sub">Point percentages in; match odds out. The scoring system does the amplifying.</p>
+  <div class="presets">
+    <button data-p="atp">Two ATP pros</button>
+    <button data-p="edge">Slight favorite</button>
+    <button data-p="club">Club mismatch</button>
+    <button data-p="even">Dead even</button>
+  </div>
+  <div class="card">
+    <h2>The matchup</h2>
+    <div class="grid">
+      <div><label>You: points won on your serve (%)</label><input id="pa" type="range" min="40" max="85" step="0.5" value="63"><span id="paVal" style="color:#ffd23f;font-weight:700"></span></div>
+      <div><label>Opponent: points won on their serve (%)</label><input id="pb" type="range" min="40" max="85" step="0.5" value="60"><span id="pbVal" style="color:#ffd23f;font-weight:700"></span></div>
+      <div><label>Match format</label><select id="format"><option value="3" selected>Best of 3 sets</option><option value="5">Best of 5 sets</option></select></div>
+    </div>
+  </div>
+  <div class="out">
+    <div class="metric"><div class="v" id="o-hold">-</div><div class="k">Your hold of serve %</div></div>
+    <div class="metric"><div class="v" id="o-break">-</div><div class="k">Your break chance per return game %</div></div>
+    <div class="metric"><div class="v" id="o-tb">-</div><div class="k">Tiebreak win % (you serve first)</div></div>
+    <div class="metric"><div class="v" id="o-set">-</div><div class="k">Set win %</div></div>
+    <div class="metric"><div class="v" id="o-match">-</div><div class="k">Match win %</div></div>
+    <div class="metric"><div class="v" id="o-opp">-</div><div class="k">Opponent hold %</div></div>
+  </div>
+  <div class="card">
+    <h2>The edge table</h2>
+    <p class="note" style="margin-top:0">If you won this share of ALL points (serve and return equally), here is what the scoring system turns it into. Serve alternation and deuce included.</p>
+    <table>
+      <tr><th>Points won</th><th>Hold %</th><th>Set %</th><th>Best of 3</th><th>Best of 5</th></tr>
+      <tbody id="o-table"></tbody>
+    </table>
+  </div>
+  <p class="note">The model: each player wins a fixed share of points on their own serve. Real matches drift (momentum, nerves, fatigue), but the structure of the scoring is exact - and the structure is what buries underdogs over five sets.</p>
+  <p><a class="back" href="index.html">&larr; Back to TennisMath</a></p>
+</main>
+<script src="engine.js"></script>
+<script>
+(function () {
+  var ids = ['pa','pb','format'];
+  function num(id) { var v = parseFloat(document.getElementById(id).value); return isFinite(v) ? v : 0; }
+  function compute() {
+    if (typeof TennisMath === 'undefined') return;
+    var pa = num('pa') / 100, pb = num('pb') / 100;
+    document.getElementById('paVal').textContent = ' ' + num('pa').toFixed(1) + '%';
+    document.getElementById('pbVal').textContent = ' ' + num('pb').toFixed(1) + '%';
+    var setProb = TennisMath.setWinProb(pa, pb);
+    var bestOf = parseInt(document.getElementById('format').value, 10);
+    document.getElementById('o-hold').textContent = TennisMath.holdPct(pa) + '%';
+    document.getElementById('o-opp').textContent = TennisMath.holdPct(pb) + '%';
+    document.getElementById('o-break').textContent = TennisMath.breakPct(pb) + '%';
+    document.getElementById('o-tb').textContent = TennisMath.pct(TennisMath.tiebreakWinProb(pa, pb)) + '%';
+    document.getElementById('o-set').textContent = TennisMath.pct(setProb) + '%';
+    document.getElementById('o-match').textContent = TennisMath.pct(TennisMath.matchWinProb(setProb, bestOf)) + '%';
+  }
+  function buildTable() {
+    var rows = '';
+    [0, 1, 2, 3, 5].forEach(function (e) {
+      var r = TennisMath.edgeRow(e);
+      rows += '<tr><td>' + r.points.toFixed(0) + '%</td><td>' + r.hold.toFixed(1) + '%</td><td>' +
+        r.set.toFixed(1) + '%</td><td>' + r.bo3.toFixed(1) + '%</td><td class="hl">' + r.bo5.toFixed(1) + '%</td></tr>';
+    });
+    document.getElementById('o-table').innerHTML = rows;
+  }
+  var presets = { atp: {pa: 65, pb: 63, format: '5'}, edge: {pa: 55, pb: 50, format: '3'}, club: {pa: 70, pb: 52, format: '3'}, even: {pa: 60, pb: 60, format: '3'} };
+  Array.prototype.forEach.call(document.querySelectorAll('.presets button'), function (b) {
+    b.addEventListener('click', function () {
+      var p = presets[b.getAttribute('data-p')];
+      if (!p) return;
+      Object.keys(p).forEach(function (k) { document.getElementById(k).value = p[k]; });
+      compute();
+    });
+  });
+  ids.forEach(function (id) {
+    document.getElementById(id).addEventListener('input', compute);
+    document.getElementById(id).addEventListener('change', compute);
+  });
+  buildTable();
+  compute();
+})();
+</script>
+</body>
+</html>
